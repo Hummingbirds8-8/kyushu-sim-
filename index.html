@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>架空九州 歴史シミュレーター</title>
+  <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ===== DESIGN SYSTEM ===== */
+    :root {
+      --bg:        #0d1018;
+      --surface:   #161a28;
+      --surface2:  #1e2236;
+      --border:    #2a2f4a;
+      --gold:      #c8a44a;
+      --gold-dim:  #8a6e2f;
+      --crimson:   #8b3838;
+      --crimson-l: #b54848;
+      --accent:    #3d6e94;
+      --text:      #e4dfd4;
+      --muted:     #8a8898;
+      --serif:     'Noto Serif JP', serif;
+      --sans:      'Noto Sans JP', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+
+    /* --- HEADER --- */
+    header {
+      background: linear-gradient(160deg, #0d1018 0%, #161828 60%, #1a1428 100%);
+      border-bottom: 1px solid var(--gold-dim);
+      padding: 22px 32px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-title h1 {
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      color: var(--gold);
+      letter-spacing: 0.12em;
+      line-height: 1.3;
+    }
+
+    .header-title p {
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      margin-top: 3px;
+    }
+
+    /* --- API BAR --- */
+    .api-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 32px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .api-bar label { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+
+    .api-bar input {
+      flex: 1; min-width: 200px; max-width: 380px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      padding: 5px 10px;
+      font-size: 0.82rem;
+      font-family: monospace;
+    }
+    .api-bar input:focus { outline: none; border-color: var(--gold-dim); }
+
+    .badge {
+      font-size: 0.7rem; padding: 2px 10px;
+      border-radius: 10px;
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .badge.ready { border-color: var(--gold); color: var(--gold); }
+
+    /* --- TABS --- */
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: none; border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: var(--sans);
+      font-size: 0.85rem;
+      padding: 12px 18px;
+      white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { border-bottom-color: var(--gold); color: var(--gold); }
+
+    /* --- LAYOUT --- */
+    .main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px 24px;
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 800px) {
+      .two-col { grid-template-columns: 1fr; }
+      header { flex-direction: column; align-items: flex-start; }
+      .main { padding: 14px; }
+    }
+
+    /* --- CARD --- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-family: var(--serif);
+      font-size: 0.95rem;
+      color: var(--gold);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* --- FORM --- */
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+    .field label { font-size: 0.78rem; color: var(--muted); }
+
+    .field select,
+    .field input[type="text"],
+    .field input[type="password"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 11px;
+      font-size: 0.85rem;
+      font-family: var(--sans);
+      width: 100%;
+    }
+    .field select:focus,
+    .field input:focus { outline: none; border-color: var(--gold-dim); }
+
+    .chk-group { display: flex; flex-direction: column; gap: 7px; }
+    .chk-group label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; cursor: pointer;
+    }
+    .chk-group input[type="checkbox"] { accent-color: var(--gold); width: 14px; height: 14px; }
+
+    /* --- BUTTONS --- */
+    .btn-run {
+      background: linear-gradient(135deg, var(--gold) 0%, #9a7530 100%);
+      border: none; border-radius: 7px;
+      color: #0d1018;
+      cursor: pointer;
+      font-family: var(--serif);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 11px 24px;
+      width: 100%;
+      margin-top: 6px;
+      transition: opacity .15s, transform .15s;
+    }
+    .btn-run:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-run:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .btn-sm {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 5px 12px;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-sm:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+    .btn-gold {
+      background: var(--gold);
+      border: none;
+      border-radius: 6px;
+      color: #0d1018;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 8px 18px;
+      transition: opacity .15s;
+    }
+    .btn-gold:hover { opacity: .85; }
+
+    .btn-del {
+      background: none; border: none;
+      color: var(--muted); cursor: pointer;
+      font-size: 0.78rem; padding: 2px 6px;
+      flex-shrink: 0;
+    }
+    .btn-del:hover { color: var(--crimson-l); }
+
+    /* --- REGION PREVIEW --- */
+    .region-info {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.65;
+      padding: 9px 11px;
+      margin-top: 6px;
+      white-space: pre-wrap;
+    }
+
+    /* --- RESULT --- */
+    .result-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      min-height: 180px;
+      padding: 18px;
+    }
+
+    .placeholder {
+      color: var(--muted);
+      text-align: center;
+      padding: 40px 20px;
+      font-size: 0.85rem;
+    }
+
+    .result-section-title {
+      font-family: var(--serif);
+      font-size: 0.95rem;
+      color: var(--gold);
+      border-left: 3px solid var(--gold);
+      padding-left: 9px;
+      margin: 18px 0 8px;
+    }
+    .result-section-title:first-child { margin-top: 0; }
+
+    .result-line { margin: 3px 0; line-height: 1.75; font-size: 0.88rem; }
+    .result-bullet { margin: 3px 0 3px 12px; line-height: 1.75; font-size: 0.88rem; }
+
+    /* --- SPINNER --- */
+    .spinner {
+      display: none;
+      text-align: center;
+      padding: 50px;
+    }
+    .spinner.on { display: block; }
+    .spin-ring {
+      display: inline-block;
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner p { margin-top: 10px; color: var(--muted); font-size: 0.8rem; }
+
+    /* --- EXPORT ROW --- */
+    .export-row {
+      display: flex; gap: 7px; flex-wrap: wrap;
+      margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* --- CHAT --- */
+    .notice {
+      background: rgba(61,110,148,.12);
+      border: 1px solid rgba(61,110,148,.35);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 0.8rem;
+      padding: 7px 14px;
+      margin-bottom: 12px;
+    }
+
+    .chat-log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      height: 420px;
+      overflow-y: auto;
+      padding: 14px;
+      margin-bottom: 10px;
+      scroll-behavior: smooth;
+    }
+
+    .msg { margin-bottom: 14px; }
+    .msg-user { text-align: right; }
+
+    .bubble {
+      display: inline-block;
+      max-width: 82%;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 0.87rem;
+      line-height: 1.65;
+      text-align: left;
+    }
+    .msg-user .bubble { background: var(--accent); color: #fff; }
+    .msg-ai  .bubble  { background: var(--surface2); border: 1px solid var(--border); }
+
+    .msg-actions { margin-top: 6px; display: flex; gap: 6px; }
+
+    .chat-row {
+      display: flex; gap: 8px;
+    }
+    .chat-row input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 9px 14px;
+      font-size: 0.88rem;
+      font-family: var(--sans);
+    }
+    .chat-row input:focus { outline: none; border-color: var(--gold-dim); }
+
+    /* --- CANON --- */
+    .canon-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold-dim);
+      border-radius: 6px;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+    .canon-text { font-size: 0.84rem; line-height: 1.6; flex: 1; }
+    .canon-meta { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+    .canon-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 24px; }
+
+    /* --- WORLD BIBLE --- */
+    .wb-region-tabs {
+      display: flex; gap: 7px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .wb-rtab {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 5px 15px;
+      transition: all .15s;
+    }
+    .wb-rtab.active { background: var(--gold); border-color: var(--gold); color: #0d1018; font-weight: 600; }
+
+    .wb-section {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .wb-sh {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      font-size: 0.87rem;
+      font-weight: 500;
+      user-select: none;
+    }
+    .wb-sh:hover { color: var(--gold); }
+    .wb-body {
+      padding: 14px 16px;
+      font-size: 0.84rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <div class="header-title">
+    <h1>架空九州 歴史シミュレーター</h1>
+    <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
+    <input type="password" id="apiKey" placeholder="AIza..." style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <button class="btn-sm" onclick="saveApiKey()">保存</button>
+    <span id="apiStatus" class="badge">未設定</span>
+  </div>
+</header>
+
+<!-- ===== TABS ===== -->
+<div class="tabs">
+  <button class="tab-btn active" id="tb-sim"    onclick="switchTab('sim',this)">🗺 シミュレーター</button>
+  <button class="tab-btn"        id="tb-chat"   onclick="switchTab('chat',this)">💬 チャット</button>
+  <button class="tab-btn"        id="tb-canon"  onclick="switchTab('canon',this)">📌 確定設定 <span id="canonBadge"></span></button>
+  <button class="tab-btn"        id="tb-bible"  onclick="switchTab('bible',this)">📚 設定集</button>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+
+  <!-- ==================== SIMULATOR ==================== -->
+  <div id="pane-sim" class="tab-pane active">
+    <div class="two-col">
+
+      <!-- INPUT PANEL -->
+      <div>
+        <div class="card">
+          <div class="card-title">🗺 入力パラメータ</div>
+
+          <div class="field">
+            <label>対象地域</label>
+            <select id="selRegion" onchange="onRegionChange()">
+              <option value="hakata">博多（交易都市・沿岸）</option>
+              <option value="nagasaki">長崎（外来文化・港）</option>
+              <option value="kumamoto">熊本（畜産・内陸盆地）</option>
+              <option value="miyazaki">宮崎（農業・太平洋）</option>
+              <option value="kagoshima">鹿児島（火山・独自文化）</option>
+              <option value="oita">大分（温泉・山岳）</option>
+              <option value="kitakyushu">北九州（海峡交通・要衝）</option>
+              <option value="raikoku">雷国（大陸・侵略側）</option>
+            </select>
+            <div id="regionInfo" class="region-info">地域を選択してください</div>
+          </div>
+
+          <div class="field">
+            <label>花（能力者）の割合</label>
+            <select id="selHana">
+              <option value="極小">極小 ── 都市に数人程度</option>
+              <option value="小" selected>小 ── 10〜20人/都市規模</option>
+              <option value="中">中 ── 社会的に広く認知</option>
+              <option value="多">多 ── 重要な役割を担う</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>主な能力タイプ（複数選択可）</label>
+            <div class="chk-group">
+              <label><input type="checkbox" name="ability" value="五感特化" checked> 五感特化（絶対嗅覚・超聴覚）</label>
+              <label><input type="checkbox" name="ability" value="観天・環境特化"> 観天・環境特化（気象予測）</label>
+              <label><input type="checkbox" name="ability" value="記憶・管理特化"> 記憶・管理特化（超記憶）</label>
+              <label><input type="checkbox" name="ability" value="非開花者のみ"> 非開花者のみ（能力者なし）</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>16年前の大戦の影響度</label>
+            <select id="selWar">
+              <option value="軽微">軽微 ── 後方・ほぼ無傷</option>
+              <option value="中度" selected>中度 ── 一部の花が消耗</option>
+              <option value="壊滅的">壊滅的 ── 花がほぼ絶滅</option>
+            </select>
+          </div>
+
+          <button class="btn-run" id="btnRun" onclick="runSim()">シミュレーション実行</button>
+        </div>
+      </div>
+
+      <!-- OUTPUT PANEL -->
+      <div>
+        <div class="card">
+          <div class="card-title">📜 シミュレーション結果</div>
+          <div id="simSpinner" class="spinner">
+            <div class="spin-ring"></div>
+            <p>世界を生成しています…</p>
+          </div>
+          <div id="simResult">
+            <div class="placeholder">左のパラメータを設定して「シミュレーション実行」を押してください</div>
+          </div>
+          <div id="simExport" class="export-row" style="display:none">
+            <button class="btn-sm" onclick="copyResult()">📋 コピー</button>
+            <button class="btn-sm" onclick="dlResult('md')">⬇ .md</button>
+            <button class="btn-sm" onclick="dlResult('txt')">⬇ .txt</button>
+            <button class="btn-sm" onclick="dlResult('json')">⬇ .json</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== CHAT ==================== -->
+  <div id="pane-chat" class="tab-pane">
+    <div class="card">
+      <div class="card-title">💬 世界観チャット</div>
+      <div id="chatNotice" class="notice" style="display:none">
+        ✅ シミュレーション結果・確定設定を引き継いでいます。世界観に沿って回答します。
+      </div>
+      <p style="font-size:0.79rem;color:var(--muted);margin-bottom:10px">
+        回答からワンクリックで「確定設定（カノン）」に追加でき、以降の質問・シミュレーションに自動反映されます。
+      </p>
+      <div id="chatLog" class="chat-log">
+        <div class="placeholder">質問を入力してください。<br>例：「博多から長崎まで移動する場合、何日かかりますか？」</div>
+      </div>
+      <div class="chat-row">
+        <input type="text" id="chatInput" placeholder="質問を入力…（Enterで送信）" onkeydown="if(event.key==='Enter'&&!event.isComposing)sendChat()">
+        <button class="btn-gold" onclick="sendChat()">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CANON ==================== -->
+  <div id="pane-canon" class="tab-pane">
+    <div class="card">
+      <div class="card-title">📌 確定設定（カノン）</div>
+      <p style="font-size:0.79rem;color:var(--muted);margin-bottom:14px">
+        チャット回答から追加した確定設定の一覧です。すべてのシミュレーション・チャットプロンプトに自動注入されます。<br>矛盾が生じた場合はカノンが優先されます。
+      </p>
+      <div id="canonList">
+        <div class="canon-empty">確定設定がありません。チャットの回答から「📌 カノンに追加」で追加できます。</div>
+      </div>
+      <div class="export-row">
+        <button class="btn-sm" onclick="dlCanon()">⬇ カノンを .md で保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BIBLE ==================== -->
+  <div id="pane-bible" class="tab-pane">
+    <div class="card">
+      <div class="card-title">📚 世界設定集（ワールドバイブル）</div>
+      <p style="font-size:0.79rem;color:var(--muted);margin-bottom:14px">
+        シミュレーション結果・確定設定・Q&amp;A履歴が地域ごとに自動整理されます。
+      </p>
+      <div id="wbTabs" class="wb-region-tabs">
+        <span style="color:var(--muted);font-size:0.83rem">シミュレーションを実行するとここに地域が表示されます</span>
+      </div>
+      <div id="wbContent"></div>
+      <div class="export-row">
+        <button class="btn-sm" onclick="dlBible('md')">📄 設定集を .md 保存</button>
+        <button class="btn-sm" onclick="dlBible('txt')">📄 設定集を .txt 保存</button>
+        <button class="btn-sm" onclick="dlSession()">💾 セッション全体 .json 保存</button>
+        <button class="btn-sm" onclick="document.getElementById('importFile').click()">📂 セッション読み込み</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="loadSession(event)">
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+/* =========================================================
+   REGIONAL PRESET DATA
+   ========================================================= */
+const REGIONS = {
+  hakata: {
+    name: '博多',
+    climate: '年間平均気温17℃。梅雨が長く（6〜7月）降水量が多い。夏は猛暑（35℃超）、冬は温暖で積雪はほぼない。台風の通り道にあたる。',
+    terrain: '博多湾に面した沿岸平野。玄界灘に開かれた天然の良港。市街地は平坦で海抜が低く、大雨時に浸水しやすい地形。',
+    industry: '交易・商業が基幹産業。博多織（絹織物）・漆器・陶磁器の輸出。漁業も盛ん。両替商・問屋・仲介業者が集積する商人都市。',
+    history: '古来より大陸・朝鮮半島との交易の玄関口。合理主義的な商人気風。外来の品物・知識が最も早く流入する最前線都市。',
+    ecology: '干潟のヨシ・マコモが広がる博多湾。カラスミ（ボラの卵巣）など海産物が特産。照葉樹林、シロサギ・アオサギの生息地。'
+  },
+  nagasaki: {
+    name: '長崎',
+    climate: '年間平均気温17℃。湿度が高く霧が多い（特に春）。雨量が多く台風の直撃も多い。斜面多く土砂崩れリスクあり。',
+    terrain: '複雑に入り組んだリアス式海岸と急峻な丘陵地。港を囲む山が天然の防壁。長崎湾は深く大型船が停泊可能。坂の多い街。',
+    industry: '外来交易の窓口。砂糖・香辛料・硝石・ガラス細工の取引。造船業・漁業。異国情緒が混在し、希少品が集まる。',
+    history: '鎖国下でも外来との交易が許された特殊な港。キリシタン文化の痕跡。オランダ・中国・南蛮の影響を受けた独自の混合文化。',
+    ecology: '入江の海藻・牡蛎・イルカ漁の伝統。丘陵の照葉樹・椿群落。霧の多い気候が独特の菌類・苔の生態系を育む。'
+  },
+  kumamoto: {
+    name: '熊本',
+    climate: '年間平均気温16℃。内陸盆地のため夏冬の寒暖差が激しい。阿蘇山の影響で火山灰が降ることがある。降水量は多め。',
+    terrain: '阿蘇カルデラ（世界最大級の火山地形）を内包。球磨川など清流多く、急峻な山間部と沃野な平野が共存。霊脈的な地場が強い。',
+    industry: '畜産（牛・馬）が主力。米作・い草（畳表）の産地。阿蘇草原を活かした広大な牧場。硫黄・温泉資源も豊富。',
+    history: '水の都とも呼ばれる城下町文化。武家文化が強く残り、実直で頑固な気風。「火の国」と称され、火山への信仰が深い。',
+    ecology: 'ミヤマキリシマ（高山植物）。タヌキ・イノシシ・ツキノワグマの生息域。阿蘇の草千里の野焼き文化。コウモリが多い洞窟群。'
+  },
+  miyazaki: {
+    name: '宮崎',
+    climate: '年間平均気温17℃。太平洋側で日照時間が長い「日向灘」の温暖な気候。台風の上陸が最も多い地域のひとつ。',
+    terrain: '太平洋に面した細長い海岸線。日南海岸の奇岩・洗岩海岸。内陸は急峻な九州山地が連なり、平野は主に海岸沿いに分布。',
+    industry: '農業（野菜・果実）が主力。リアス式海岸の漁業。林業・木材資源。「神話の地」として信仰と観光的価値が高い。',
+    history: '高千穂など神話の舞台として信仰が厚い。中央から地理的に遠く、独自の文化を保持しやすい辺境の地。神官・巫女の影響力が強い。',
+    ecology: '日南海岸のビロウ椰子群落（南国植物の北限）。鵜戸神宮のウミウ営巣地。ウミガメの産卵地。山中にヤマネコの目撃例。'
+  },
+  kagoshima: {
+    name: '鹿児島',
+    climate: '年間平均気温19℃（九州最暖）。桜島の噴火による火山灰が日常的に降る。台風の常連コース。梅雨は長く降水量が多い。',
+    terrain: '活火山・桜島が錦江湾に聳え常時噴煙。薩摩半島・大隅半島が鹿児島湾を囲む。離島が多く、海洋文化が発達。',
+    industry: '芋焼酎（薩摩芋）・黒豚・牛の畜産。漁業（カツオ）。琉球との密貿易の歴史的な中継地。独自の冶金・造船技術の素地あり。',
+    history: '外様大名として反骨精神が根強い。琉球王国を支配下に置き南の貿易ルートを掌握。海洋国家的側面を持つ独立気質の強い地域。',
+    ecology: '桜島溶岩台地に適応した固有植物群。ヤクシマザル・ヤクシカの祖先型動物。海域はジンベエザメ・マンタが出現する豊かな漁場。'
+  },
+  oita: {
+    name: '大分',
+    climate: '年間平均気温16℃。山間部では冬に積雪。別府・由布院など温泉地帯では地熱で微気候あり。豊後水道は霧が出やすい。',
+    terrain: '別府湾に面した沿岸部と九州山地の山岳部が混在。日本最大の温泉湧出量を誇る別府温泉群。豊後水道は潮流が複雑で漁業に向く。',
+    industry: '温泉・湯治（療養文化）。農業（カボス・干し椎茸）。豊後水道の漁業（ブリ・関サバ・関アジ）。木材・林業。',
+    history: '豊後国は古来より仏教文化が栄え、文人・学者を多く輩出。ヨーロッパ文化の影響を受けた大友宗麟の時代の痕跡が残る。',
+    ecology: 'ラムサール条約湿地の干潟。コウノトリの生息域。阿蘇くじゅう連山の高山植物帯。地熱地帯の特殊な硫黄泉生態系。'
+  },
+  kitakyushu: {
+    name: '北九州',
+    climate: '年間平均気温16℃。関門海峡は風が強く荒天が多い。冬季に日本海側から寒波が入りやすい。夏は熱島効果で猛暑になりやすい。',
+    terrain: '関門海峡を挟んで本州と対峙する戦略的要衝。玄界灘と周防灘の二海に面する。響灘は遠浅、北九州港は天然の良港。',
+    industry: '海峡交通の要衝として海運・物流が発達。鉄・金属加工の素地がある。陶磁器（小倉焼）。海峡沿いの漁業（フグが名産）。',
+    history: '古代より関東と大陸を結ぶ往来の要所。多くの海戦の舞台。軍事的・物流的に極めて重要な位置を占める。船大工・水夫文化が根強い。',
+    ecology: '関門海峡の急潮流に適応した魚類。海峡沿岸のヨシ帯。ミサゴなど猛禽類の営巣地。沖合にはクラゲが季節的に大発生する。'
+  },
+  raikoku: {
+    name: '雷国（大陸）',
+    climate: '年間平均気温8℃。厳しい大陸性気候。冬は−10℃以下になる地域もある。短い夏と長い冬。乾燥した空気と激しい雷雨が特徴（国名の由来）。',
+    terrain: '広大な大陸の平原と南端に伸びる半島部。九州方面への渡航には玄界灘を渡る必要がある。戦略的な深港を持つ南岸都市が重要。',
+    industry: '軍事・鉱業が基幹。鉄・銅の採掘と武器製造。大規模農業（小麦・蒸留酒）。国家主導の交易と徴税システム。',
+    history: '16年前の侵略戦争で九州に大規模な遠征軍を送った。花の存在を戦場で知り、以後は能力者の獲得・研究に国家資源を投入している。',
+    ecology: 'ステップ草原の大型草食獣（野牛・野馬）。渡り鳥の中継地。雷が多い大平原では避雷・気象技術が比較的発達している。'
+  }
+};
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const S = {
+  apiKey: '',
+  region: 'hakata',
+  simResult: null,
+  simParams: null,
+  chatHistory: [],   // [{role:'user'|'model', text}]
+  canon: [],         // [{id, text, full, ts, regionName}]
+  wb: {},            // {regionKey: {params, simResult, chatLog:[{q,a,ts}], canon:[...]}}
+  wbActiveRegion: null,
+};
+
+/* =========================================================
+   INIT
+   ========================================================= */
+window.addEventListener('DOMContentLoaded', () => {
+  const k = localStorage.getItem('gem_key');
+  if (k) { document.getElementById('apiKey').value = k; S.apiKey = k; setApiStatus(true); }
+  onRegionChange();
+});
+
+/* =========================================================
+   API KEY
+   ========================================================= */
+function saveApiKey() {
+  const k = document.getElementById('apiKey').value.trim();
+  S.apiKey = k;
+  localStorage.setItem('gem_key', k);
+  setApiStatus(!!k);
+}
+
+function setApiStatus(ok) {
+  const el = document.getElementById('apiStatus');
+  el.textContent = ok ? '✓ 設定済み' : '未設定';
+  el.className = 'badge' + (ok ? ' ready' : '');
+}
+
+/* =========================================================
+   TABS
+   ========================================================= */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+  document.getElementById('pane-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'bible') renderBible();
+  if (name === 'canon') renderCanon();
+}
+
+/* =========================================================
+   REGION
+   ========================================================= */
+function onRegionChange() {
+  S.region = document.getElementById('selRegion').value;
+  const d = REGIONS[S.region];
+  document.getElementById('regionInfo').textContent =
+    `📍 ${d.name}\n🌤 気候: ${d.climate.slice(0, 55)}…\n⛰ 地形: ${d.terrain.slice(0, 55)}…\n🏭 産業: ${d.industry.slice(0, 55)}…`;
+}
+
+/* =========================================================
+   SYSTEM PROMPT BUILDER
+   ========================================================= */
+function buildSystem(regionKey, params) {
+  const d = REGIONS[regionKey];
+  const canonBlock = S.canon.length
+    ? '\n\n【確定設定（変更不可・優先）】\n以下の内容は確定した世界設定です。矛盾しないように回答してください。\n' +
+      S.canon.map(c => `・${c.text}`).join('\n')
+    : '';
+
+  return `あなたは架空の九州を舞台にしたファンタジー世界の世界観構築AIです。
+以下の世界設定と地域データに厳密に基づいて回答してください。
+
+【世界の前提ルール】
+・時代：18世紀末〜19世紀前半相当。馬車、万年筆、ガス灯、初期蒸気船が存在する。
+・兵器：火薬・銃器の発達は遅れており、弓矢・刀・槍が主要兵器。火縄銃相当以上は普及していない。
+・花（能力者）：Y染色体（男性）にのみ発現する特殊能力者。五感の研ぎ澄まし（絶対嗅覚・超聴覚・超記憶）や観天（気象予測）を持つ。
+・蜂：花の相棒男性。「契り」と呼ばれる肉体・感情の結合により花の能力がブーストされる。
+・産土：土地の力。霊脈の近くで花の能力が開花・増幅される。
+・技術の歪み：花の能力で代替できる技術（気象測定器・遠距離通信・精密測量）は需要低下で停滞。花を補完する技術（製薬・化学・本草学・統計学・精密工芸・情報管理）は異常に発達。
+・16年前：大陸（雷国）の侵略戦争で花の存在が露呈し、前線の花が激減。現在は絶対数が非常に少ない。
+
+【対象地域：${d.name}（実在の九州をモデルとした架空の土地）】
+・気候：${d.climate}
+・地形：${d.terrain}
+・産業：${d.industry}
+・歴史的背景：${d.history}
+・植生・生態：${d.ecology}
+
+【現在の入力パラメータ】
+・花の割合：${params.hana}
+・主な能力タイプ：${params.types.join('、')}
+・16年前の大戦の影響：${params.war}
+${canonBlock}
+
+架空の固有名詞（地名・品名・人名）を適度に使って世界観を豊かにし、創作に直接役立つ具体的な内容で回答してください。`;
+}
+
+/* =========================================================
+   GEMINI API
+   ========================================================= */
+async function gemini(systemText, userText, history = []) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${S.apiKey}`;
+  const contents = [
+    ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
+    { role: 'user', parts: [{ text: userText }] }
+  ];
+  const body = {
+    system_instruction: { parts: [{ text: systemText }] },
+    contents,
+    generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '（応答なし）';
+}
+
+/* =========================================================
+   SIMULATION
+   ========================================================= */
+async function runSim() {
+  if (!S.apiKey) { alert('Gemini APIキーを設定してください。'); return; }
+  const regionKey = document.getElementById('selRegion').value;
+  const hana  = document.getElementById('selHana').value;
+  const types = [...document.querySelectorAll('input[name="ability"]:checked')].map(c => c.value);
+  const war   = document.getElementById('selWar').value;
+  if (!types.length) { alert('能力タイプを1つ以上選択してください。'); return; }
+
+  const params = { hana, types, war };
+  S.simParams = { regionKey, ...params };
+
+  const sys  = buildSystem(regionKey, params);
+  const user = `${REGIONS[regionKey].name}地域のシミュレーション結果を以下の3セクション構成で出力してください。各セクションは見出し【】付きで、具体的・詳細に記述してください。
+
+【技術・科学の歪み】
+①「異常に発達した技術」を4〜6項目：具体的な品名・サービス名と、なぜこの地域・能力バランスで発達したかの理由を書いてください。
+②「発達が停滞・不要とされた技術」を3〜4項目：具体的な理由付きで書いてください。
+
+【社会・生活・文化】
+①この地域特有のマナーや禁忌を3〜5つ（能力者の存在や地理条件に関連したものを含める）
+②主な職業分布と、文官（管理・情報処理層）の役割
+③18〜19世紀的なレトロアイテムの具体的な用途を3つ以上（例：小瓶の香油、万年筆、竹筒、ガス灯、乾燥薬草束など）
+
+【創作・ストーリーの種】
+この地域の風土・能力バランスだからこそ起こりうる「日常のトラブルまたは事件」のプロット案を2案。各案にタイトルと3〜4行のあらすじを書いてください。`;
+
+  document.getElementById('simSpinner').classList.add('on');
+  document.getElementById('simResult').innerHTML = '';
+  document.getElementById('simExport').style.display = 'none';
+  document.getElementById('btnRun').disabled = true;
+
+  try {
+    const text = await gemini(sys, user);
+    S.simResult = text;
+
+    // Store in wb
+    if (!S.wb[regionKey]) S.wb[regionKey] = {};
+    S.wb[regionKey].params = params;
+    S.wb[regionKey].simResult = text;
+
+    document.getElementById('simResult').innerHTML = renderResultHtml(text);
+    document.getElementById('simExport').style.display = 'flex';
+    document.getElementById('chatNotice').style.display = 'block';
+  } catch(e) {
+    document.getElementById('simResult').innerHTML =
+      `<div style="color:var(--crimson-l);padding:16px">エラー: ${esc(e.message)}</div>`;
+  } finally {
+    document.getElementById('simSpinner').classList.remove('on');
+    document.getElementById('btnRun').disabled = false;
+  }
+}
+
+function renderResultHtml(text) {
+  return text.split('\n').map(line => {
+    if (/^【.*】/.test(line))
+      return `<div class="result-section-title">${esc(line)}</div>`;
+    if (/^[①②③④⑤⑥⑦⑧⑨・●▶◆]/.test(line.trim()))
+      return `<div class="result-bullet">${esc(line)}</div>`;
+    if (line.trim() === '') return '<div style="height:6px"></div>';
+    return `<div class="result-line">${esc(line)}</div>`;
+  }).join('');
+}
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const q = input.value.trim();
+  if (!q) return;
+  if (!S.apiKey) { alert('APIキーを設定してください。'); return; }
+  input.value = '';
+
+  appendMsg('user', q);
+
+  const regionKey = S.simParams?.regionKey || S.region;
+  const params = S.simParams
+    ? { hana: S.simParams.hana, types: S.simParams.types, war: S.simParams.war }
+    : { hana: '小', types: ['五感特化'], war: '中度' };
+
+  const sys = buildSystem(regionKey, params);
+  const thinking = appendMsg('ai', '…思案中…', null, true);
+
+  try {
+    const answer = await gemini(sys, q, S.chatHistory);
+    thinking.remove();
+
+    S.chatHistory.push({ role: 'user', text: q });
+    S.chatHistory.push({ role: 'model', text: answer });
+
+    // wb log
+    if (!S.wb[regionKey]) S.wb[regionKey] = {};
+    if (!S.wb[regionKey].chatLog) S.wb[regionKey].chatLog = [];
+    S.wb[regionKey].chatLog.push({ q, a: answer, ts: now() });
+
+    appendMsg('ai', answer, q);
+  } catch(e) {
+    thinking.remove();
+    appendMsg('ai', `エラー: ${e.message}`, null);
+  }
+}
+
+function appendMsg(role, text, question, temp = false) {
+  const log = document.getElementById('chatLog');
+  // Clear placeholder on first message
+  if (log.querySelector('.placeholder')) log.innerHTML = '';
+
+  const wrap = document.createElement('div');
+  wrap.className = `msg msg-${role}`;
+
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.textContent = text;
+  wrap.appendChild(bub);
+
+  if (role === 'ai' && !temp && question) {
+    const acts = document.createElement('div');
+    acts.className = 'msg-actions';
+    const btn = document.createElement('button');
+    btn.className = 'btn-sm';
+    btn.textContent = '📌 カノンに追加';
+    btn.onclick = () => addCanon(text);
+    acts.appendChild(btn);
+    wrap.appendChild(acts);
+  }
+
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return wrap;
+}
+
+/* =========================================================
+   CANON
+   ========================================================= */
+function addCanon(fullText) {
+  const summary = fullText.length > 220 ? fullText.slice(0, 220) + '…' : fullText;
+  const regionKey = S.simParams?.regionKey || S.region;
+  const item = {
+    id: Date.now(),
+    text: summary,
+    full: fullText,
+    ts: now(),
+    regionName: REGIONS[regionKey]?.name || '不明',
+    regionKey,
+  };
+  S.canon.push(item);
+
+  if (!S.wb[regionKey]) S.wb[regionKey] = {};
+  if (!S.wb[regionKey].canon) S.wb[regionKey].canon = [];
+  S.wb[regionKey].canon.push(item);
+
+  updateCanonBadge();
+  alert('✅ 確定設定に追加しました！\n以降のシミュレーション・チャットに自動反映されます。');
+}
+
+function removeCanon(id) {
+  S.canon = S.canon.filter(c => c.id !== id);
+  Object.values(S.wb).forEach(r => { if (r.canon) r.canon = r.canon.filter(c => c.id !== id); });
+  updateCanonBadge();
+  renderCanon();
+}
+
+function updateCanonBadge() {
+  const el = document.getElementById('canonBadge');
+  el.textContent = S.canon.length ? ` (${S.canon.length})` : '';
+}
+
+function renderCanon() {
+  const el = document.getElementById('canonList');
+  if (!el) return;
+  if (!S.canon.length) {
+    el.innerHTML = '<div class="canon-empty">確定設定がありません。チャットの回答から「📌 カノンに追加」で追加できます。</div>';
+    return;
+  }
+  el.innerHTML = S.canon.map(c => `
+    <div class="canon-item">
+      <div style="flex:1">
+        <div class="canon-text">${esc(c.text)}</div>
+        <div class="canon-meta">📍 ${esc(c.regionName)} ・ ${esc(c.ts)}</div>
+      </div>
+      <button class="btn-del" onclick="removeCanon(${c.id})" title="削除">✕</button>
+    </div>`).join('');
+}
+
+/* =========================================================
+   WORLD BIBLE
+   ========================================================= */
+function renderBible() {
+  const tabsEl   = document.getElementById('wbTabs');
+  const contentEl = document.getElementById('wbContent');
+  const regions   = Object.keys(S.wb);
+
+  if (!regions.length) {
+    tabsEl.innerHTML = '<span style="color:var(--muted);font-size:0.83rem">シミュレーションを実行するとここに地域が表示されます</span>';
+    contentEl.innerHTML = '';
+    return;
+  }
+
+  if (!S.wbActiveRegion || !S.wb[S.wbActiveRegion]) S.wbActiveRegion = regions[0];
+
+  tabsEl.innerHTML = regions.map(k =>
+    `<button class="wb-rtab ${k === S.wbActiveRegion ? 'active' : ''}" onclick="switchWbRegion('${k}')">${REGIONS[k].name}</button>`
+  ).join('');
+
+  renderWbContent(S.wbActiveRegion);
+}
+
+function switchWbRegion(key) {
+  S.wbActiveRegion = key;
+  renderBible();
+}
+
+function renderWbContent(key) {
+  const d  = REGIONS[key];
+  const rd = S.wb[key] || {};
+
+  let sections = [];
+
+  // 1. Preset
+  sections.push(wbSec('🏙️ 基本情報（地域プリセット）',
+    `気候：${d.climate}\n\n地形：${d.terrain}\n\n産業：${d.industry}\n\n歴史：${d.history}\n\n植生・生態：${d.ecology}`
+  ));
+
+  // 2. Sim result
+  if (rd.simResult) {
+    const p = rd.params || {};
+    sections.push(wbSec('🔬 シミュレーション結果',
+      `▼ 入力設定｜花の割合: ${p.hana} ／ 能力タイプ: ${(p.types||[]).join('、')} ／ 大戦の影響: ${p.war}\n\n` + rd.simResult
+    ));
+  }
+
+  // 3. Canon
+  if (rd.canon?.length) {
+    sections.push(wbSec('📌 確定設定（カノン）',
+      rd.canon.map(c => `・${c.text}\n  （追加日時: ${c.ts}）`).join('\n\n')
+    ));
+  }
+
+  // 4. Q&A log
+  if (rd.chatLog?.length) {
+    sections.push(wbSec('💬 Q&A履歴',
+      rd.chatLog.map((c, i) =>
+        `【Q${i+1}】${c.q}\n【A${i+1}】${c.a}\n（${c.ts}）`
+      ).join('\n\n────────────────\n\n')
+    ));
+  }
+
+  document.getElementById('wbContent').innerHTML =
+    sections.length ? sections.join('') : '<div class="placeholder" style="padding:20px">この地域のデータはまだありません。</div>';
+}
+
+function wbSec(title, body) {
+  const uid = 'wb' + Math.random().toString(36).slice(2, 8);
+  return `<div class="wb-section">
+    <div class="wb-sh" onclick="toggleSec('${uid}')"><span>${esc(title)}</span><span>▾</span></div>
+    <div id="${uid}" class="wb-body">${esc(body)}</div>
+  </div>`;
+}
+
+function toggleSec(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+/* =========================================================
+   EXPORT / IMPORT
+   ========================================================= */
+function copyResult() {
+  navigator.clipboard.writeText(S.simResult || '').then(() => alert('コピーしました！'));
+}
+
+function dlResult(fmt) {
+  const rName = S.simParams?.regionKey ? REGIONS[S.simParams.regionKey].name : '不明';
+  if (fmt === 'json') {
+    dl(`sim-${rName}.json`,
+      JSON.stringify({ region: rName, params: S.simParams, result: S.simResult, canon: S.canon }, null, 2),
+      'application/json');
+  } else {
+    dl(`sim-${rName}.${fmt}`,
+      `# シミュレーション結果｜${rName}\n生成日時：${now()}\n\n${S.simResult}`,
+      'text/plain');
+  }
+}
+
+function dlCanon() {
+  const lines = S.canon.map(c => `・${c.text}\n  （地域: ${c.regionName} ／ ${c.ts}）`).join('\n\n');
+  dl('canon.md', `# 確定設定（カノン）\n出力日時：${now()}\n\n${lines}`, 'text/plain');
+}
+
+function dlBible(fmt) {
+  let out = `# 架空九州 世界設定集\n出力日時：${now()}\n`;
+  Object.entries(S.wb).forEach(([key, rd]) => {
+    const d = REGIONS[key];
+    out += `\n${'═'.repeat(44)}\n## 📍 ${d.name}\n${'═'.repeat(44)}\n\n`;
+    out += `### 🏙️ 基本情報\n気候：${d.climate}\n地形：${d.terrain}\n産業：${d.industry}\n歴史：${d.history}\n植生：${d.ecology}\n\n`;
+    if (rd.simResult) out += `### 🔬 シミュレーション結果\n${rd.simResult}\n\n`;
+    if (rd.canon?.length) {
+      out += `### 📌 確定設定\n` + rd.canon.map(c => `・${c.text}`).join('\n') + '\n\n';
+    }
+    if (rd.chatLog?.length) {
+      out += `### 💬 Q&A履歴\n`;
+      rd.chatLog.forEach((c, i) => { out += `Q${i+1}: ${c.q}\nA${i+1}: ${c.a}\n（${c.ts}）\n\n`; });
+    }
+  });
+  dl(`worldbible.${fmt}`, out, 'text/plain');
+}
+
+function dlSession() {
+  dl('session.json', JSON.stringify({
+    savedAt: now(), version: '1.0',
+    simParams: S.simParams, simResult: S.simResult,
+    chatHistory: S.chatHistory, canon: S.canon, wb: S.wb
+  }, null, 2), 'application/json');
+}
+
+function loadSession(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.simParams)    S.simParams    = d.simParams;
+      if (d.simResult)    S.simResult    = d.simResult;
+      if (d.chatHistory)  S.chatHistory  = d.chatHistory;
+      if (d.canon)        S.canon        = d.canon;
+      if (d.wb)           S.wb           = d.wb;
+      updateCanonBadge();
+      renderCanon();
+      renderBible();
+      alert('✅ セッションを復元しました！');
+    } catch { alert('ファイルの読み込みに失敗しました。'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* =========================================================
+   UTILS
+   ========================================================= */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function now() {
+  return new Date().toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function dl(name, content, mime) {
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([content], { type: mime })),
+    download: name
+  });
+  a.click();
+}
+</script>
+</body>
+</html>
