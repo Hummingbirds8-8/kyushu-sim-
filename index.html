@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- =========================================================
-   架空九州 歴史シミュレーター (最新版 v1.0.4 - チャットマークダウン視認性大幅向上版)
+   架空九州 歴史シミュレーター (最新版 v1.0.5 - 安定モデルgemini-1.5対応版)
    最終更新: 2026-08-10
    ========================================================= -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>架空九州 歴史シミュレーター v1.0.4</title>
+  <title>架空九州 歴史シミュレーター v1.0.5</title>
   <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -421,12 +421,12 @@
 <!-- ===== HEADER ===== -->
 <header>
   <div class="header-title">
-    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.4 チャット見易さ向上版</span></h1>
+    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.5 安定対応版</span></h1>
     <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.4)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.5)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -759,14 +759,12 @@ ${canonBlock}
 }
 
 /* =========================================================
-   GEMINI API (モデル自動フォールバック対応)
+   GEMINI API (公式安定モデル)
    ========================================================= */
 const GEMINI_MODELS = [
-  'gemini-2.5-flash',
   'gemini-1.5-flash',
-  'gemini-2.5-pro',
   'gemini-1.5-pro',
-  'gemini-flash'
+  'gemini-1.5-flash-8b'
 ];
 
 async function gemini(systemText, userText, history = []) {
@@ -774,7 +772,7 @@ async function gemini(systemText, userText, history = []) {
     throw new Error('APIキーが設定されていません。ヘッダーの入力欄にGemini APIキーを入力して保存してください。');
   }
 
-  let lastError = null;
+  let errors = [];
 
   for (const model of GEMINI_MODELS) {
     try {
@@ -799,11 +797,11 @@ async function gemini(systemText, userText, history = []) {
         const e = await res.json().catch(() => ({}));
         const rawMsg = e.error?.message || `HTTP ${res.status}`;
 
-        if (res.status === 400 && (rawMsg.includes('API key not valid') || rawMsg.includes('invalid API key'))) {
-          throw new Error(`APIキーが無効またはフォーマットが不正です。(${rawMsg})\n※Google AI Studioで作成したGemini APIキーをご使用ください。`);
+        if (res.status === 400 && (rawMsg.includes('API key not valid') || rawMsg.includes('invalid API key') || rawMsg.includes('API_KEY_INVALID'))) {
+          throw new Error(`APIキーが無効です。Google AI Studioで作成した正しいGemini APIキーをご使用ください。(${rawMsg})`);
         }
 
-        lastError = new Error(`モデル ${model} エラー: ${rawMsg}`);
+        errors.push(`${model}: ${rawMsg}`);
         continue;
       }
 
@@ -812,11 +810,11 @@ async function gemini(systemText, userText, history = []) {
       if (text) return text;
     } catch (err) {
       if (err.message.includes('APIキーが無効')) throw err;
-      lastError = err;
+      errors.push(err.message);
     }
   }
 
-  throw lastError || new Error('すべての利用可能モデルの呼び出しに失敗しました。');
+  throw new Error(`API呼び出しエラー:\n${errors.join('\n')}`);
 }
 
 /* =========================================================
@@ -935,12 +933,10 @@ function formatChatText(text) {
   lines.forEach(line => {
     const trimmed = line.trim();
 
-    // マークダウンの太字・強調エスケープ
     let s = esc(line)
       .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--gold);font-weight:600">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em style="color:var(--text)">$1</em>');
 
-    // 見出し ### 
     if (/^#{1,4}\s+(.*)/.test(trimmed)) {
       if (inList) { html.push('</ul>'); inList = false; }
       const hText = trimmed.replace(/^#{1,4}\s+/, '');
@@ -949,7 +945,6 @@ function formatChatText(text) {
       return;
     }
 
-    // リスト項目 * または -
     if (/^[*\-]\s+(.*)/.test(trimmed)) {
       if (!inList) { html.push('<ul style="margin:8px 0 8px 18px;padding:0;list-style-type:disc">'); inList = true; }
       const itemText = s.replace(/^[*\-]\s+/, '');
