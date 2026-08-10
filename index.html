@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- =========================================================
-   架空九州 歴史シミュレーター (最新版 v1.0.5 - 安定モデルgemini-1.5対応版)
+   架空九州 歴史シミュレーター (最新版 v1.0.6 - v1 API完全対応版)
    最終更新: 2026-08-10
    ========================================================= -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>架空九州 歴史シミュレーター v1.0.5</title>
+  <title>架空九州 歴史シミュレーター v1.0.6</title>
   <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -421,12 +421,12 @@
 <!-- ===== HEADER ===== -->
 <header>
   <div class="header-title">
-    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.5 安定対応版</span></h1>
+    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.6 v1 API完全対応版</span></h1>
     <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.5)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.6)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -759,12 +759,14 @@ ${canonBlock}
 }
 
 /* =========================================================
-   GEMINI API (公式安定モデル)
+   GEMINI API (v1 / v1beta 両対応・自動フォールバック)
    ========================================================= */
-const GEMINI_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash-8b'
+const API_ENDPOINTS = [
+  { ver: 'v1', model: 'gemini-1.5-flash' },
+  { ver: 'v1', model: 'gemini-1.5-pro' },
+  { ver: 'v1beta', model: 'gemini-1.5-flash' },
+  { ver: 'v1beta', model: 'gemini-1.5-pro' },
+  { ver: 'v1', model: 'gemini-2.0-flash' }
 ];
 
 async function gemini(systemText, userText, history = []) {
@@ -774,16 +776,24 @@ async function gemini(systemText, userText, history = []) {
 
   let errors = [];
 
-  for (const model of GEMINI_MODELS) {
+  for (const ep of API_ENDPOINTS) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/${ep.ver}/models/${ep.model}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
+      
       const contents = [
         ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
         { role: 'user', parts: [{ text: userText }] }
       ];
-      const body = {
+
+      // APIバージョン(v1 / v1beta)に応じたリクエスト構造調整
+      const body = ep.ver === 'v1beta' ? {
         system_instruction: { parts: [{ text: systemText }] },
         contents,
+        generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
+      } : {
+        contents: [
+          { role: 'user', parts: [{ text: `【前提システム命令】\n${systemText}\n\n【会話履歴・入力】\n${userText}` }] }
+        ],
         generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
       };
 
@@ -801,7 +811,7 @@ async function gemini(systemText, userText, history = []) {
           throw new Error(`APIキーが無効です。Google AI Studioで作成した正しいGemini APIキーをご使用ください。(${rawMsg})`);
         }
 
-        errors.push(`${model}: ${rawMsg}`);
+        errors.push(`[${ep.ver}/${ep.model}] ${rawMsg}`);
         continue;
       }
 
