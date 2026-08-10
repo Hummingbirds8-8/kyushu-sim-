@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- =========================================================
-   架空九州 歴史シミュレーター (最新版 v1.0.6 - v1 API完全対応版)
+   架空九州 歴史シミュレーター (最新版 v1.0.7 - 全自動モデル検出AI版)
    最終更新: 2026-08-10
    ========================================================= -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>架空九州 歴史シミュレーター v1.0.6</title>
+  <title>架空九州 歴史シミュレーター v1.0.7</title>
   <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -421,12 +421,12 @@
 <!-- ===== HEADER ===== -->
 <header>
   <div class="header-title">
-    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.6 v1 API完全対応版</span></h1>
+    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.7 全自動モデル検出版</span></h1>
     <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.6)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.7)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -689,6 +689,7 @@ function saveApiKey() {
   k = k.replace(/^["']|["']$/g, '');
   S.apiKey = k;
   localStorage.setItem('gem_key', k);
+  cachedModelList = null; // キー更新時はモデル一覧の再取得を強制
   setApiStatus(!!k);
 }
 
@@ -759,40 +760,82 @@ ${canonBlock}
 }
 
 /* =========================================================
-   GEMINI API (v1 / v1beta 両対応・自動フォールバック)
+   GEMINI API (全自動リアルタイムモデル検出システム)
    ========================================================= */
-const API_ENDPOINTS = [
-  { ver: 'v1', model: 'gemini-1.5-flash' },
-  { ver: 'v1', model: 'gemini-1.5-pro' },
-  { ver: 'v1beta', model: 'gemini-1.5-flash' },
-  { ver: 'v1beta', model: 'gemini-1.5-pro' },
-  { ver: 'v1', model: 'gemini-2.0-flash' }
-];
+let cachedModelList = null;
+
+async function fetchValidModels(apiKey) {
+  if (cachedModelList) return cachedModelList;
+
+  let foundModels = [];
+  const versions = ['v1beta', 'v1'];
+
+  for (const ver of versions) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${encodeURIComponent(apiKey)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.models && Array.isArray(data.models)) {
+          const valid = data.models
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => ({ ver, name: m.name.replace('models/', '') }));
+          foundModels.push(...valid);
+        }
+      }
+    } catch(e) {
+      console.warn(`[Gemini API] ${ver} モデル取得警告:`, e);
+    }
+  }
+
+  if (foundModels.length > 0) {
+    cachedModelList = foundModels;
+    return foundModels;
+  }
+
+  // 自動取得ができない場合の予備モデル定義
+  return [
+    { ver: 'v1beta', name: 'gemini-1.5-flash-latest' },
+    { ver: 'v1beta', name: 'gemini-1.5-pro-latest' },
+    { ver: 'v1', name: 'gemini-1.5-flash' }
+  ];
+}
 
 async function gemini(systemText, userText, history = []) {
   if (!S.apiKey) {
     throw new Error('APIキーが設定されていません。ヘッダーの入力欄にGemini APIキーを入力して保存してください。');
   }
 
-  let errors = [];
+  const availableModels = await fetchValidModels(S.apiKey);
+  let lastErr = null;
 
-  for (const ep of API_ENDPOINTS) {
+  // 優先したいモデルキー案
+  const prefOrders = ['2.5-flash', '1.5-flash', '2.0-flash', '2.5-pro', '1.5-pro', 'flash', 'pro'];
+  
+  // 優先順位でソート
+  const sortedModels = [...availableModels].sort((a, b) => {
+    let indexA = prefOrders.findIndex(k => a.name.includes(k));
+    let indexB = prefOrders.findIndex(k => b.name.includes(k));
+    if (indexA === -1) indexA = 999;
+    if (indexB === -1) indexB = 999;
+    return indexA - indexB;
+  });
+
+  for (const target of sortedModels) {
     try {
-      const url = `https://generativelanguage.googleapis.com/${ep.ver}/models/${ep.model}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/${target.ver}/models/${target.name}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
       
       const contents = [
         ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
         { role: 'user', parts: [{ text: userText }] }
       ];
 
-      // APIバージョン(v1 / v1beta)に応じたリクエスト構造調整
-      const body = ep.ver === 'v1beta' ? {
+      const body = target.ver === 'v1beta' ? {
         system_instruction: { parts: [{ text: systemText }] },
         contents,
         generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
       } : {
         contents: [
-          { role: 'user', parts: [{ text: `【前提システム命令】\n${systemText}\n\n【会話履歴・入力】\n${userText}` }] }
+          { role: 'user', parts: [{ text: `【前提命令】\n${systemText}\n\n【会話入力】\n${userText}` }] }
         ],
         generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
       };
@@ -808,10 +851,10 @@ async function gemini(systemText, userText, history = []) {
         const rawMsg = e.error?.message || `HTTP ${res.status}`;
 
         if (res.status === 400 && (rawMsg.includes('API key not valid') || rawMsg.includes('invalid API key') || rawMsg.includes('API_KEY_INVALID'))) {
-          throw new Error(`APIキーが無効です。Google AI Studioで作成した正しいGemini APIキーをご使用ください。(${rawMsg})`);
+          throw new Error(`APIキーが無効です。Google AI Studioで新しいGemini APIキーを取得して設定してください。(${rawMsg})`);
         }
 
-        errors.push(`[${ep.ver}/${ep.model}] ${rawMsg}`);
+        lastErr = new Error(`[${target.ver}/${target.name}] ${rawMsg}`);
         continue;
       }
 
@@ -820,11 +863,11 @@ async function gemini(systemText, userText, history = []) {
       if (text) return text;
     } catch (err) {
       if (err.message.includes('APIキーが無効')) throw err;
-      errors.push(err.message);
+      lastErr = err;
     }
   }
 
-  throw new Error(`API呼び出しエラー:\n${errors.join('\n')}`);
+  throw lastErr || new Error('モデルの自動呼出に失敗しました。Gemini APIキーを確認してください。');
 }
 
 /* =========================================================
