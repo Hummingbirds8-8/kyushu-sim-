@@ -1,9 +1,13 @@
 <!DOCTYPE html>
+<!-- =========================================================
+   架空九州 歴史シミュレーター (最新版 v1.0.4 - チャットマークダウン視認性大幅向上版)
+   最終更新: 2026-08-10
+   ========================================================= -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>架空九州 歴史シミュレーター</title>
+  <title>架空九州 歴史シミュレーター v1.0.4</title>
   <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -26,6 +30,10 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html {
+      overflow-y: auto;
+    }
+
     body {
       background: var(--bg);
       color: var(--text);
@@ -33,6 +41,7 @@
       font-size: 14px;
       min-height: 100vh;
       line-height: 1.7;
+      overflow-y: auto;
     }
 
     /* --- HEADER --- */
@@ -226,33 +235,36 @@
       white-space: pre-wrap;
     }
 
-    /* --- RESULT (SCROLLABLE) --- */
+    /* --- RESULT (FULLY SCROLLABLE & RESPONSIVE) --- */
     #simResult {
-      max-height: 520px;
-      overflow-y: auto;
-      padding-right: 8px;
-      margin-bottom: 10px;
+      max-height: 60vh;
+      min-height: 180px;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      padding-right: 12px;
+      margin-bottom: 12px;
       scroll-behavior: smooth;
     }
 
-    /* スクロールバーのカスタマイズ */
+    /* スクロールバーのデザイン強調 */
     #simResult::-webkit-scrollbar,
     .chat-log::-webkit-scrollbar {
-      width: 6px;
+      width: 8px;
     }
     #simResult::-webkit-scrollbar-track,
     .chat-log::-webkit-scrollbar-track {
-      background: var(--bg);
-      border-radius: 3px;
+      background: rgba(13, 16, 24, 0.8);
+      border-radius: 4px;
     }
     #simResult::-webkit-scrollbar-thumb,
     .chat-log::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px;
+      background: var(--gold-dim);
+      border-radius: 4px;
     }
     #simResult::-webkit-scrollbar-thumb:hover,
     .chat-log::-webkit-scrollbar-thumb:hover {
-      background: var(--gold-dim);
+      background: var(--gold);
     }
 
     .placeholder {
@@ -275,29 +287,14 @@
     .result-line { margin: 3px 0; line-height: 1.75; font-size: 0.88rem; }
     .result-bullet { margin: 3px 0 3px 12px; line-height: 1.75; font-size: 0.88rem; }
 
-    /* --- SPINNER --- */
-    .spinner {
-      display: none;
-      text-align: center;
-      padding: 50px;
-    }
-    .spinner.on { display: block; }
-    .spin-ring {
-      display: inline-block;
-      width: 36px; height: 36px;
-      border: 3px solid var(--border);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner p { margin-top: 10px; color: var(--muted); font-size: 0.8rem; }
-
     /* --- EXPORT ROW --- */
     .export-row {
       display: flex; gap: 7px; flex-wrap: wrap;
       margin-top: 12px; padding-top: 12px;
       border-top: 1px solid var(--border);
+      background: var(--surface);
+      position: relative;
+      z-index: 2;
     }
 
     /* --- CHAT --- */
@@ -315,29 +312,32 @@
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 8px;
-      height: 420px;
+      height: 480px;
       overflow-y: auto;
-      padding: 14px;
+      padding: 16px;
       margin-bottom: 10px;
       scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
 
-    .msg { margin-bottom: 14px; }
+    .msg { margin-bottom: 16px; }
     .msg-user { text-align: right; }
 
     .bubble {
       display: inline-block;
-      max-width: 82%;
-      padding: 9px 14px;
+      max-width: 88%;
+      padding: 12px 16px;
       border-radius: 10px;
-      font-size: 0.87rem;
-      line-height: 1.65;
+      font-size: 0.88rem;
+      line-height: 1.75;
       text-align: left;
+      word-break: break-word;
     }
     .msg-user .bubble { background: var(--accent); color: #fff; }
     .msg-ai  .bubble  { background: var(--surface2); border: 1px solid var(--border); }
 
-    .msg-actions { margin-top: 6px; display: flex; gap: 6px; }
+    .msg-actions { margin-top: 8px; display: flex; gap: 6px; }
 
     .chat-row {
       display: flex; gap: 8px;
@@ -421,12 +421,12 @@
 <!-- ===== HEADER ===== -->
 <header>
   <div class="header-title">
-    <h1>架空九州 歴史シミュレーター</h1>
+    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.4 チャット見易さ向上版</span></h1>
     <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza... または AQ..." style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.4)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -876,7 +876,6 @@ async function runSim() {
 
 function renderResultHtml(text) {
   return text.split('\n').map(line => {
-    // マークダウンの太字 **...** を <strong> に変換し、余分な * やリスト記号を整形
     let cleanLine = esc(line).replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--gold)">$1</strong>');
 
     if (/^【.*】/.test(line))
@@ -889,7 +888,7 @@ function renderResultHtml(text) {
 }
 
 /* =========================================================
-   CHAT
+   CHAT (MARKDOWN FORMATTING)
    ========================================================= */
 async function sendChat() {
   const input = document.getElementById('chatInput');
@@ -927,6 +926,54 @@ async function sendChat() {
   }
 }
 
+function formatChatText(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  let html = [];
+  let inList = false;
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+
+    // マークダウンの太字・強調エスケープ
+    let s = esc(line)
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--gold);font-weight:600">$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em style="color:var(--text)">$1</em>');
+
+    // 見出し ### 
+    if (/^#{1,4}\s+(.*)/.test(trimmed)) {
+      if (inList) { html.push('</ul>'); inList = false; }
+      const hText = trimmed.replace(/^#{1,4}\s+/, '');
+      const cleanH = esc(hText).replace(/\*\*(.*?)\*\*/g, '$1');
+      html.push(`<div style="font-family:var(--serif);font-size:0.96rem;color:var(--gold);font-weight:600;margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px;letter-spacing:0.04em">${cleanH}</div>`);
+      return;
+    }
+
+    // リスト項目 * または -
+    if (/^[*\-]\s+(.*)/.test(trimmed)) {
+      if (!inList) { html.push('<ul style="margin:8px 0 8px 18px;padding:0;list-style-type:disc">'); inList = true; }
+      const itemText = s.replace(/^[*\-]\s+/, '');
+      html.push(`<li style="margin-bottom:6px;line-height:1.7;color:var(--text)">${itemText}</li>`);
+      return;
+    }
+
+    if (inList) {
+      html.push('</ul>');
+      inList = false;
+    }
+
+    if (trimmed === '') {
+      html.push('<div style="height:10px"></div>');
+    } else {
+      html.push(`<div style="margin-bottom:8px;line-height:1.75;color:var(--text)">${s}</div>`);
+    }
+  });
+
+  if (inList) html.push('</ul>');
+
+  return html.join('');
+}
+
 function appendMsg(role, text, question, temp = false) {
   const log = document.getElementById('chatLog');
   if (log.querySelector('.placeholder')) log.innerHTML = '';
@@ -936,7 +983,13 @@ function appendMsg(role, text, question, temp = false) {
 
   const bub = document.createElement('div');
   bub.className = 'bubble';
-  bub.textContent = text;
+
+  if (role === 'ai' && !temp) {
+    bub.innerHTML = formatChatText(text);
+  } else {
+    bub.textContent = text;
+  }
+  
   wrap.appendChild(bub);
 
   if (role === 'ai' && !temp && question) {
