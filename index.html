@@ -739,38 +739,68 @@ ${canonBlock}
 }
 
 /* =========================================================
-   GEMINI API
+   GEMINI API (モデル自動フォールバック対応)
    ========================================================= */
+// 試行するモデル候補リスト（順次フォールバック）
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-1.5-flash',
+  'gemini-2.5-pro',
+  'gemini-1.5-pro',
+  'gemini-flash'
+];
+
 async function gemini(systemText, userText, history = []) {
   if (!S.apiKey) {
     throw new Error('APIキーが設定されていません。ヘッダーの入力欄にGemini APIキーを入力して保存してください。');
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(S.apiKey)}`;
-  const contents = [
-    ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
-    { role: 'user', parts: [{ text: userText }] }
-  ];
-  const body = {
-    system_instruction: { parts: [{ text: systemText }] },
-    contents,
-    generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
-  };
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    const rawMsg = e.error?.message || `HTTP ${res.status}`;
-    if (res.status === 400 || rawMsg.includes('API key not valid')) {
-      throw new Error(`APIキーが無効またはフォーマットが不正です。(${rawMsg})\n※Google AI Studioで作成したGemini APIキーをご使用ください。`);
+  let lastError = null;
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
+      const contents = [
+        ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
+        { role: 'user', parts: [{ text: userText }] }
+      ];
+      const body = {
+        system_instruction: { parts: [{ text: systemText }] },
+        contents,
+        generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        const rawMsg = e.error?.message || `HTTP ${res.status}`;
+
+        // キー自体の認証エラー（400 Invalid keyなど）の場合は打ち切り
+        if (res.status === 400 && (rawMsg.includes('API key not valid') || rawMsg.includes('invalid API key'))) {
+          throw new Error(`APIキーが無効またはフォーマットが不正です。(${rawMsg})\n※Google AI Studioで作成したGemini APIキーをご使用ください。`);
+        }
+
+        // モデルが廃止された／存在しない場合は次の候補を試す
+        lastError = new Error(`モデル ${model} エラー: ${rawMsg}`);
+        console.warn(`[Gemini API] ${model} 失敗, 次のモデルを試します...`, rawMsg);
+        continue;
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+    } catch (err) {
+      if (err.message.includes('APIキーが無効')) throw err;
+      lastError = err;
     }
-    throw new Error(rawMsg);
   }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '（応答なし）';
+
+  throw lastError || new Error('すべての利用可能モデルの呼び出しに失敗しました。');
 }
 
 /* =========================================================
