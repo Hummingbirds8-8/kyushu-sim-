@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- =========================================================
-   架空九州 歴史シミュレーター (最新版 v1.0.7 - 全自動モデル検出AI版)
+   架空九州 歴史シミュレーター (最新版 v1.0.8 - 地域完全連動＆勝手な造語禁止版)
    最終更新: 2026-08-10
    ========================================================= -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>架空九州 歴史シミュレーター v1.0.7</title>
+  <title>架空九州 歴史シミュレーター v1.0.8</title>
   <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -421,12 +421,12 @@
 <!-- ===== HEADER ===== -->
 <header>
   <div class="header-title">
-    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.7 全自動モデル検出版</span></h1>
+    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.8 地域完全連動＆勝手な造語禁止版</span></h1>
     <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.7)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.8)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -527,14 +527,17 @@
   <div id="pane-chat" class="tab-pane">
     <div class="card">
       <div class="card-title">💬 世界観チャット</div>
+      <div id="chatRegionBadge" style="font-size:0.85rem;color:var(--gold);margin-bottom:10px;font-weight:600;background:var(--surface2);padding:6px 12px;border-radius:6px;border:1px solid var(--border)">
+        📍 現在の相談対象地域：博多
+      </div>
       <div id="chatNotice" class="notice" style="display:none">
-        ✅ シミュレーション結果・確定設定を引き継いでいます。世界観に沿って回答します。
+        ✅ シミュレーション結果・確定設定を引き継いでいます。選択中の地域に沿って回答します。
       </div>
       <p style="font-size:0.79rem;color:var(--muted);margin-bottom:10px">
         回答からワンクリックで「確定設定（カノン）」に追加でき、以降の質問・シミュレーションに自動反映されます。
       </p>
       <div id="chatLog" class="chat-log">
-        <div class="placeholder">質問を入力してください。<br>例：「博多から長崎まで移動する場合、何日かかりますか？」</div>
+        <div class="placeholder">質問を入力してください。<br>例：「この地域で移動する場合、何日かかりますか？」</div>
       </div>
       <div class="chat-row">
         <input type="text" id="chatInput" placeholder="質問を入力…（Enterで送信）" onkeydown="if(event.key==='Enter'&&!event.isComposing)sendChat()">
@@ -689,7 +692,7 @@ function saveApiKey() {
   k = k.replace(/^["']|["']$/g, '');
   S.apiKey = k;
   localStorage.setItem('gem_key', k);
-  cachedModelList = null; // キー更新時はモデル一覧の再取得を強制
+  cachedModelList = null;
   setApiStatus(!!k);
 }
 
@@ -712,27 +715,37 @@ function switchTab(name, btn) {
 }
 
 /* =========================================================
-   REGION
+   REGION (DYNAMICALLY SYNC WITH CHAT)
    ========================================================= */
 function onRegionChange() {
   S.region = document.getElementById('selRegion').value;
   const d = REGIONS[S.region];
   document.getElementById('regionInfo').textContent =
     `📍 ${d.name}\n🌤 気候: ${d.climate.slice(0, 55)}…\n⛰ 地形: ${d.terrain.slice(0, 55)}…\n🏭 産業: ${d.industry.slice(0, 55)}…`;
+  
+  // チャット画面の地域表示も即座に同期
+  const chatBadge = document.getElementById('chatRegionBadge');
+  if (chatBadge) {
+    chatBadge.textContent = `📍 現在の相談対象地域：${d.name}`;
+  }
 }
 
 /* =========================================================
-   SYSTEM PROMPT BUILDER
+   SYSTEM PROMPT BUILDER (勝手な造語禁止・選択地域厳守)
    ========================================================= */
 function buildSystem(regionKey, params) {
   const d = REGIONS[regionKey];
   const canonBlock = S.canon.length
-    ? '\n\n【確定設定（変更不可・優先）】\n以下の内容は確定した世界設定です。矛盾しないように回答してください。\n' +
+    ? '\n\n【確定設定（変更不可・最優先）】\n以下の内容は確定した世界設定です。絶対に矛盾しないように回答してください。\n' +
       S.canon.map(c => `・${c.text}`).join('\n')
     : '';
 
-  return `あなたは架空の九州を舞台にしたファンタジー世界の世界観構築AIです。
-以下の世界設定と地域データに厳密に基づいて回答してください。
+  return `あなたは架空の九州を舞台にしたファンタジー世界の世界観構築・相談AIアシスタントです。
+以下の世界設定および選択された地域【${d.name}】のデータに厳密に基づいて回答してください。
+
+【厳格な禁止・遵守事項】
+1. 勝手な創作単語・架空の独自の固有名詞・オリジナル造語の捏造は一切禁止です。与えられた設定データ・地域情報・確定設定（カノン）および一般的な言葉のみを使って説明してください。
+2. 必ずユーザーが指定した対象地域【${d.name}】の地理・風土・文化・産業に基づいて回答してください。他の地域（博多等）と混同したり、他地域の情報を勝手に使わないでください。
 
 【世界の前提ルール】
 ・時代：18世紀末〜19世紀前半相当。馬車、万年筆、ガス灯、初期蒸気船が存在する。
@@ -743,7 +756,7 @@ function buildSystem(regionKey, params) {
 ・技術の歪み：花の能力で代替できる技術（気象測定器・遠距離通信・精密測量）は需要低下で停滞。花を補完する技術（製薬・化学・本草学・統計学・精密工芸・情報管理）は異常に発達。
 ・16年前：大陸（雷国）の侵略戦争で花の存在が露呈し、前線の花が激減。現在は絶対数が非常に少ない。
 
-【対象地域：${d.name}（実在の九州をモデルとした架空の土地）】
+【対象地域：${d.name}】
 ・気候：${d.climate}
 ・地形：${d.terrain}
 ・産業：${d.industry}
@@ -754,9 +767,7 @@ function buildSystem(regionKey, params) {
 ・花の割合：${params.hana}
 ・主な能力タイプ：${params.types.join('、')}
 ・16年前の大戦の影響：${params.war}
-${canonBlock}
-
-架空の固有名詞（地名・品名・人名）を適度に使って世界観を豊かにし、創作に直接役立つ具体的な内容で回答してください。`;
+${canonBlock}`;
 }
 
 /* =========================================================
@@ -792,7 +803,6 @@ async function fetchValidModels(apiKey) {
     return foundModels;
   }
 
-  // 自動取得ができない場合の予備モデル定義
   return [
     { ver: 'v1beta', name: 'gemini-1.5-flash-latest' },
     { ver: 'v1beta', name: 'gemini-1.5-pro-latest' },
@@ -808,10 +818,8 @@ async function gemini(systemText, userText, history = []) {
   const availableModels = await fetchValidModels(S.apiKey);
   let lastErr = null;
 
-  // 優先したいモデルキー案
   const prefOrders = ['2.5-flash', '1.5-flash', '2.0-flash', '2.5-pro', '1.5-pro', 'flash', 'pro'];
   
-  // 優先順位でソート
   const sortedModels = [...availableModels].sort((a, b) => {
     let indexA = prefOrders.findIndex(k => a.name.includes(k));
     let indexB = prefOrders.findIndex(k => b.name.includes(k));
@@ -832,12 +840,12 @@ async function gemini(systemText, userText, history = []) {
       const body = target.ver === 'v1beta' ? {
         system_instruction: { parts: [{ text: systemText }] },
         contents,
-        generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
       } : {
         contents: [
           { role: 'user', parts: [{ text: `【前提命令】\n${systemText}\n\n【会話入力】\n${userText}` }] }
         ],
-        generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
       };
 
       const res = await fetch(url, {
@@ -939,7 +947,7 @@ function renderResultHtml(text) {
 }
 
 /* =========================================================
-   CHAT (MARKDOWN FORMATTING)
+   CHAT (DYNAMIC REGION SYNC & STRICT NO-HALLUCINATION)
    ========================================================= */
 async function sendChat() {
   const input = document.getElementById('chatInput');
@@ -950,10 +958,15 @@ async function sendChat() {
 
   appendMsg('user', q);
 
-  const regionKey = S.simParams?.regionKey || S.region;
-  const params = S.simParams
+  // 入力フォームで現在選択されている地域を動的に取得
+  const regionKey = document.getElementById('selRegion').value;
+  const hana  = document.getElementById('selHana').value;
+  const types = [...document.querySelectorAll('input[name="ability"]:checked')].map(c => c.value);
+  const war   = document.getElementById('selWar').value;
+
+  const params = S.simParams?.regionKey === regionKey
     ? { hana: S.simParams.hana, types: S.simParams.types, war: S.simParams.war }
-    : { hana: '小', types: ['五感特化'], war: '中度' };
+    : { hana, types: types.length ? types : ['五感特化'], war };
 
   const sys = buildSystem(regionKey, params);
   const thinking = appendMsg('ai', '…思案中…', null, true);
@@ -1061,7 +1074,7 @@ function appendMsg(role, text, question, temp = false) {
    ========================================================= */
 function addCanon(fullText) {
   const summary = fullText.length > 220 ? fullText.slice(0, 220) + '…' : fullText;
-  const regionKey = S.simParams?.regionKey || S.region;
+  const regionKey = document.getElementById('selRegion').value;
   const item = {
     id: Date.now(),
     text: summary,
