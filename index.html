@@ -61,39 +61,6 @@
       margin-top: 3px;
     }
 
-    /* --- API BAR --- */
-    .api-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 8px 32px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .api-bar label { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
-
-    .api-bar input {
-      flex: 1; min-width: 200px; max-width: 380px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      color: var(--text);
-      padding: 5px 10px;
-      font-size: 0.82rem;
-      font-family: monospace;
-    }
-    .api-bar input:focus { outline: none; border-color: var(--gold-dim); }
-
-    .badge {
-      font-size: 0.7rem; padding: 2px 10px;
-      border-radius: 10px;
-      background: var(--surface2); color: var(--muted);
-      border: 1px solid var(--border);
-    }
-    .badge.ready { border-color: var(--gold); color: var(--gold); }
-
     /* --- TABS --- */
     .tabs {
       display: flex;
@@ -237,6 +204,14 @@
       flex-shrink: 0;
     }
     .btn-del:hover { color: var(--crimson-l); }
+
+    .badge {
+      font-size: 0.7rem; padding: 2px 10px;
+      border-radius: 10px;
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .badge.ready { border-color: var(--gold); color: var(--gold); }
 
     /* --- REGION PREVIEW --- */
     .region-info {
@@ -431,7 +406,7 @@
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza..." style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ..." style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -677,7 +652,11 @@ const S = {
    ========================================================= */
 window.addEventListener('DOMContentLoaded', () => {
   const k = localStorage.getItem('gem_key');
-  if (k) { document.getElementById('apiKey').value = k; S.apiKey = k; setApiStatus(true); }
+  if (k) { 
+    document.getElementById('apiKey').value = k; 
+    S.apiKey = k.trim(); 
+    setApiStatus(true); 
+  }
   onRegionChange();
 });
 
@@ -685,7 +664,9 @@ window.addEventListener('DOMContentLoaded', () => {
    API KEY
    ========================================================= */
 function saveApiKey() {
-  const k = document.getElementById('apiKey').value.trim();
+  let k = document.getElementById('apiKey').value.trim();
+  // コピー時の余分な引用符や空白を除去
+  k = k.replace(/^["']|["']$/g, '');
   S.apiKey = k;
   localStorage.setItem('gem_key', k);
   setApiStatus(!!k);
@@ -761,7 +742,11 @@ ${canonBlock}
    GEMINI API
    ========================================================= */
 async function gemini(systemText, userText, history = []) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${S.apiKey}`;
+  if (!S.apiKey) {
+    throw new Error('APIキーが設定されていません。ヘッダーの入力欄にGemini APIキーを入力して保存してください。');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(S.apiKey)}`;
   const contents = [
     ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
     { role: 'user', parts: [{ text: userText }] }
@@ -778,7 +763,11 @@ async function gemini(systemText, userText, history = []) {
   });
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
-    throw new Error(e.error?.message || `HTTP ${res.status}`);
+    const rawMsg = e.error?.message || `HTTP ${res.status}`;
+    if (res.status === 400 || rawMsg.includes('API key not valid')) {
+      throw new Error(`APIキーが無効またはフォーマットが不正です。(${rawMsg})\n※Google AI Studioで作成したGemini APIキーをご使用ください。`);
+    }
+    throw new Error(rawMsg);
   }
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '（応答なし）';
@@ -832,7 +821,7 @@ async function runSim() {
     document.getElementById('chatNotice').style.display = 'block';
   } catch(e) {
     document.getElementById('simResult').innerHTML =
-      `<div style="color:var(--crimson-l);padding:16px">エラー: ${esc(e.message)}</div>`;
+      `<div style="color:var(--crimson-l);padding:16px;white-space:pre-wrap">エラー: ${esc(e.message)}</div>`;
   } finally {
     document.getElementById('simSpinner').classList.remove('on');
     document.getElementById('btnRun').disabled = false;
@@ -891,7 +880,6 @@ async function sendChat() {
 
 function appendMsg(role, text, question, temp = false) {
   const log = document.getElementById('chatLog');
-  // Clear placeholder on first message
   if (log.querySelector('.placeholder')) log.innerHTML = '';
 
   const wrap = document.createElement('div');
