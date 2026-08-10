@@ -226,13 +226,33 @@
       white-space: pre-wrap;
     }
 
-    /* --- RESULT --- */
-    .result-box {
+    /* --- RESULT (SCROLLABLE) --- */
+    #simResult {
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 8px;
+      margin-bottom: 10px;
+      scroll-behavior: smooth;
+    }
+
+    /* スクロールバーのカスタマイズ */
+    #simResult::-webkit-scrollbar,
+    .chat-log::-webkit-scrollbar {
+      width: 6px;
+    }
+    #simResult::-webkit-scrollbar-track,
+    .chat-log::-webkit-scrollbar-track {
       background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      min-height: 180px;
-      padding: 18px;
+      border-radius: 3px;
+    }
+    #simResult::-webkit-scrollbar-thumb,
+    .chat-log::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    #simResult::-webkit-scrollbar-thumb:hover,
+    .chat-log::-webkit-scrollbar-thumb:hover {
+      background: var(--gold-dim);
     }
 
     .placeholder {
@@ -741,7 +761,6 @@ ${canonBlock}
 /* =========================================================
    GEMINI API (モデル自動フォールバック対応)
    ========================================================= */
-// 試行するモデル候補リスト（順次フォールバック）
 const GEMINI_MODELS = [
   'gemini-2.5-flash',
   'gemini-1.5-flash',
@@ -780,14 +799,11 @@ async function gemini(systemText, userText, history = []) {
         const e = await res.json().catch(() => ({}));
         const rawMsg = e.error?.message || `HTTP ${res.status}`;
 
-        // キー自体の認証エラー（400 Invalid keyなど）の場合は打ち切り
         if (res.status === 400 && (rawMsg.includes('API key not valid') || rawMsg.includes('invalid API key'))) {
           throw new Error(`APIキーが無効またはフォーマットが不正です。(${rawMsg})\n※Google AI Studioで作成したGemini APIキーをご使用ください。`);
         }
 
-        // モデルが廃止された／存在しない場合は次の候補を試す
         lastError = new Error(`モデル ${model} エラー: ${rawMsg}`);
-        console.warn(`[Gemini API] ${model} 失敗, 次のモデルを試します...`, rawMsg);
         continue;
       }
 
@@ -860,12 +876,15 @@ async function runSim() {
 
 function renderResultHtml(text) {
   return text.split('\n').map(line => {
+    // マークダウンの太字 **...** を <strong> に変換し、余分な * やリスト記号を整形
+    let cleanLine = esc(line).replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--gold)">$1</strong>');
+
     if (/^【.*】/.test(line))
-      return `<div class="result-section-title">${esc(line)}</div>`;
-    if (/^[①②③④⑤⑥⑦⑧⑨・●▶◆]/.test(line.trim()))
-      return `<div class="result-bullet">${esc(line)}</div>`;
+      return `<div class="result-section-title">${cleanLine}</div>`;
+    if (/^[①②③④⑤⑥⑦⑧⑨・●▶◆*]/.test(line.trim()))
+      return `<div class="result-bullet">${cleanLine.replace(/^\*\s*/, '・')}</div>`;
     if (line.trim() === '') return '<div style="height:6px"></div>';
-    return `<div class="result-line">${esc(line)}</div>`;
+    return `<div class="result-line">${cleanLine}</div>`;
   }).join('');
 }
 
