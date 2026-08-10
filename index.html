@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- =========================================================
-   架空九州 歴史シミュレーター (最新版 v1.0.8 - 地域完全連動＆勝手な造語禁止版)
+   架空九州 歴史シミュレーター (最新版 v1.0.9 - 九州全域対応版)
    最終更新: 2026-08-10
    ========================================================= -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>架空九州 歴史シミュレーター v1.0.8</title>
+  <title>架空九州 歴史シミュレーター v1.0.9</title>
   <meta name="description" content="18〜19世紀文明をベースにした架空九州ファンタジー世界の創作支援シミュレーター。花と蜂の世界観に基づき地域の技術・社会・文化を生成します。">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -421,12 +421,12 @@
 <!-- ===== HEADER ===== -->
 <header>
   <div class="header-title">
-    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.8 地域完全連動＆勝手な造語禁止版</span></h1>
+    <h1>架空九州 歴史シミュレーター <span style="font-size:0.7rem;background:var(--gold);color:#0d1018;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:6px">v1.0.9 九州全域対応版</span></h1>
     <p>18〜19世紀文明 × 花と蜂の世界 ── ファンタジー創作支援ツール</p>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <label for="apiKey" style="font-size:0.78rem;color:var(--muted)">Gemini API キー</label>
-    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.8)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
+    <input type="password" id="apiKey" placeholder="AIza... または AQ... (v1.0.9)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 10px;font-size:0.8rem;font-family:monospace;width:240px">
     <button class="btn-sm" onclick="saveApiKey()">保存</button>
     <span id="apiStatus" class="badge">未設定</span>
   </div>
@@ -455,6 +455,7 @@
           <div class="field">
             <label>対象地域</label>
             <select id="selRegion" onchange="onRegionChange()">
+              <option value="kyushu" selected>九州全域（全体総括・広域勢力）</option>
               <option value="hakata">博多（交易都市・沿岸）</option>
               <option value="nagasaki">長崎（外来文化・港）</option>
               <option value="kumamoto">熊本（畜産・内陸盆地）</option>
@@ -528,7 +529,7 @@
     <div class="card">
       <div class="card-title">💬 世界観チャット</div>
       <div id="chatRegionBadge" style="font-size:0.85rem;color:var(--gold);margin-bottom:10px;font-weight:600;background:var(--surface2);padding:6px 12px;border-radius:6px;border:1px solid var(--border)">
-        📍 現在の相談対象地域：博多
+        📍 現在の相談対象地域：九州全域
       </div>
       <div id="chatNotice" class="notice" style="display:none">
         ✅ シミュレーション結果・確定設定を引き継いでいます。選択中の地域に沿って回答します。
@@ -537,7 +538,7 @@
         回答からワンクリックで「確定設定（カノン）」に追加でき、以降の質問・シミュレーションに自動反映されます。
       </p>
       <div id="chatLog" class="chat-log">
-        <div class="placeholder">質問を入力してください。<br>例：「この地域で移動する場合、何日かかりますか？」</div>
+        <div class="placeholder">質問を入力してください。<br>例：「九州全域での花（能力者）の全体的な社会的位置づけは？」</div>
       </div>
       <div class="chat-row">
         <input type="text" id="chatInput" placeholder="質問を入力…（Enterで送信）" onkeydown="if(event.key==='Enter'&&!event.isComposing)sendChat()">
@@ -587,9 +588,17 @@
 
 <script>
 /* =========================================================
-   REGIONAL PRESET DATA
+   REGIONAL PRESET DATA (九州全域を追加)
    ========================================================= */
 const REGIONS = {
+  kyushu: {
+    name: '九州全域',
+    climate: '温帯から亜熱帯に及ぶ多雨多湿な気候。玄界灘の冬の寒波から日向灘の暖かな太平洋気候まで多様。台風の主要経路であり、年間を通じて自然の変動が大きい。',
+    terrain: '中央に険しい九州山地がそびえ、阿蘇・桜島などの活火山群が霊脈を形成。周囲を沿岸平野とリアス式海岸、関門海峡が囲む島嶼・広域地形。',
+    industry: '博多の交易、鹿児島の畜産・薩摩焼酎、長崎の外来貿易、熊本の米・い草、大分の温泉・水産、北九州の物流など、各地域が専門特化し網状に結合。',
+    history: '古代より外来交易拠点であり独立気質が強い。16年前の雷国（大陸）侵略戦争に対し連合して抵抗した歴史を持ち、全域で「花」の保全と活用のネットワークが存在。',
+    ecology: '照葉樹林帯を中心に、高山植物（ミヤマキリシマ）から南国植物（ビロウ椰子）、干潟・サンゴ礁・地熱硫黄泉に至る極めて多様で豊かな生態系。'
+  },
   hakata: {
     name: '博多',
     climate: '年間平均気温17℃。梅雨が長く（6〜7月）降水量が多い。夏は猛暑（35℃超）、冬は温暖で積雪はほぼない。台風の通り道にあたる。',
@@ -661,7 +670,7 @@ const REGIONS = {
    ========================================================= */
 const S = {
   apiKey: '',
-  region: 'hakata',
+  region: 'kyushu',
   simResult: null,
   simParams: null,
   chatHistory: [],   // [{role:'user'|'model', text}]
@@ -688,7 +697,6 @@ window.addEventListener('DOMContentLoaded', () => {
    ========================================================= */
 function saveApiKey() {
   let k = document.getElementById('apiKey').value.trim();
-  // コピー時の余分な引用符や空白を除去
   k = k.replace(/^["']|["']$/g, '');
   S.apiKey = k;
   localStorage.setItem('gem_key', k);
@@ -715,7 +723,7 @@ function switchTab(name, btn) {
 }
 
 /* =========================================================
-   REGION (DYNAMICALLY SYNC WITH CHAT)
+   REGION
    ========================================================= */
 function onRegionChange() {
   S.region = document.getElementById('selRegion').value;
@@ -723,7 +731,6 @@ function onRegionChange() {
   document.getElementById('regionInfo').textContent =
     `📍 ${d.name}\n🌤 気候: ${d.climate.slice(0, 55)}…\n⛰ 地形: ${d.terrain.slice(0, 55)}…\n🏭 産業: ${d.industry.slice(0, 55)}…`;
   
-  // チャット画面の地域表示も即座に同期
   const chatBadge = document.getElementById('chatRegionBadge');
   if (chatBadge) {
     chatBadge.textContent = `📍 現在の相談対象地域：${d.name}`;
@@ -731,7 +738,7 @@ function onRegionChange() {
 }
 
 /* =========================================================
-   SYSTEM PROMPT BUILDER (勝手な造語禁止・選択地域厳守)
+   SYSTEM PROMPT BUILDER
    ========================================================= */
 function buildSystem(regionKey, params) {
   const d = REGIONS[regionKey];
@@ -745,7 +752,7 @@ function buildSystem(regionKey, params) {
 
 【厳格な禁止・遵守事項】
 1. 勝手な創作単語・架空の独自の固有名詞・オリジナル造語の捏造は一切禁止です。与えられた設定データ・地域情報・確定設定（カノン）および一般的な言葉のみを使って説明してください。
-2. 必ずユーザーが指定した対象地域【${d.name}】の地理・風土・文化・産業に基づいて回答してください。他の地域（博多等）と混同したり、他地域の情報を勝手に使わないでください。
+2. 必ずユーザーが指定した対象地域【${d.name}】の地理・風土・文化・産業に基づいて回答してください。他の地域と混同しないでください。
 
 【世界の前提ルール】
 ・時代：18世紀末〜19世紀前半相当。馬車、万年筆、ガス灯、初期蒸気船が存在する。
@@ -958,7 +965,6 @@ async function sendChat() {
 
   appendMsg('user', q);
 
-  // 入力フォームで現在選択されている地域を動的に取得
   const regionKey = document.getElementById('selRegion').value;
   const hana  = document.getElementById('selHana').value;
   const types = [...document.querySelectorAll('input[name="ability"]:checked')].map(c => c.value);
